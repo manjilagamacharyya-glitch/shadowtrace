@@ -1,59 +1,50 @@
-"use client";
-
-import { motion } from "framer-motion";
-
 const features = [
   {
-    title: "AI Scam Detection",
-    desc: "Detect phishing, fake investment schemes, and scam patterns instantly.",
+    tag: "scam",
+    title: "Scam & phishing detection",
+    desc: "Flags fake investment pitches, credential-harvesting attempts, and known scam phrasing in text.",
   },
   {
-    title: "Voice Fraud Analysis",
-    desc: "Identify AI-generated voice manipulation and emotional pressure tactics.",
+    tag: "voice",
+    title: "Voice fraud analysis",
+    desc: "Reads call transcripts for AI-impersonation cues and forced-urgency, family-emergency style pressure.",
   },
   {
-    title: "Threat Intelligence",
-    desc: "Analyze psychological manipulation patterns in digital communication.",
+    tag: "pattern",
+    title: "Manipulation patterns",
+    desc: "Looks for the psychological levers scams rely on — urgency, authority, isolation, guilt.",
   },
   {
-    title: "Real-Time Protection",
-    desc: "Instant alerts and live risk analysis while browsing or chatting.",
+    tag: "live",
+    title: "Real-time scoring",
+    desc: "Every scan returns a threat probability instantly, so you get an answer, not just a warning.",
   },
 ];
 
 export default function Features() {
   return (
-    <section 
-    id="features"
-    className="relative py-32 px-6">
-      <div className="max-w-7xl mx-auto">
-        <motion.h2
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
-          className="text-5xl md:text-6xl font-bold text-center mb-20"
-        >
-          Advanced{" "}
-          <span className="text-cyan-400">Threat Intelligence</span>
-        </motion.h2>
+    <section id="features" className="border-b border-neutral-800 px-6 py-16">
+      <div className="mx-auto max-w-5xl">
+        <h2 className="mb-8 font-mono text-sm uppercase tracking-widest text-neutral-400">
+          What it looks for
+        </h2>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {features.map((feature, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.15 }}
-              className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl hover:border-cyan-400/40 transition-all duration-300 hover:shadow-[0_0_30px_rgba(34,211,238,0.2)]"
+        <div className="grid gap-px overflow-hidden rounded-md border border-neutral-800 bg-neutral-800 sm:grid-cols-2">
+          {features.map((feature) => (
+            <div
+              key={feature.tag}
+              className="bg-[#0a0a0b] p-6 transition hover:bg-neutral-950"
             >
-              <h3 className="text-2xl font-semibold mb-4 text-cyan-400">
+              <span className="font-mono text-[11px] uppercase tracking-wide text-cyan-500">
+                {feature.tag}
+              </span>
+              <h3 className="mt-2 text-lg font-semibold text-neutral-100">
                 {feature.title}
               </h3>
-
-              <p className="text-gray-400 leading-relaxed">
+              <p className="mt-2 text-sm leading-relaxed text-neutral-400">
                 {feature.desc}
               </p>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

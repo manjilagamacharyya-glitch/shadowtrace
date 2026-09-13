@@ -1,58 +1,82 @@
 "use client";
 
 import { useState } from "react";
+import { parseRiskScore } from "@/lib/parseRiskScore";
+
+const MAX_AUDIO_BYTES = 4 * 1024 * 1024; // ~4MB, safely under Vercel's request body limit
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // strip the "data:audio/mpeg;base64," prefix
+      resolve(result.split(",")[1] ?? "");
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function VoiceScanner() {
   const [transcript, setTranscript] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [riskScore, setRiskScore] = useState(0);
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files?.[0];
+    setFileError("");
+    if (!selected) {
+      setFile(null);
+      return;
+    }
+    if (selected.size > MAX_AUDIO_BYTES) {
+      setFileError(
+        `That file is ${(selected.size / (1024 * 1024)).toFixed(1)}MB — please use a clip under 4MB (roughly 1–2 minutes).`
+      );
+      setFile(null);
+      e.target.value = "";
+      return;
+    }
+    setFile(selected);
+  }
+
   async function analyzeVoice() {
-    if (!transcript.trim()) return;
+    if (!file && !transcript.trim()) return;
 
     setLoading(true);
     setResult("");
 
     try {
+      const payload: {
+        transcript: string;
+        audioBase64?: string;
+        mimeType?: string;
+      } = { transcript };
+
+      if (file) {
+        payload.audioBase64 = await fileToBase64(file);
+        payload.mimeType = file.type || "audio/mpeg";
+      }
+
       const res = await fetch("/api/analyze-voice", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          transcript: transcript,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
-
       const output = data.result || "No response";
-
       setResult(output);
 
-      // Extract risk score
-      const scoreMatch = output.match(/Risk Score:\s*(\d+)/i);
-
-      let extractedScore = scoreMatch
-        ? parseInt(scoreMatch[1])
-        : 0;
-
-      // Convert 5/5 style scoring into percentage
-      if (extractedScore <= 5) {
-        extractedScore = extractedScore * 20;
-      }
-
-      // Limit max score to 100
-      if (extractedScore > 100) {
-        extractedScore = 100;
-      }
-
+      const extractedScore = parseRiskScore(output);
       setRiskScore(extractedScore);
     } catch (error) {
       console.error(error);
-
-      setResult("Voice analysis failed.");
+      setResult("Voice analysis failed. Try again in a moment.");
       setRiskScore(0);
     }
 
@@ -60,82 +84,83 @@ export default function VoiceScanner() {
   }
 
   return (
-    <section className="w-full py-24 px-6 bg-black text-white">
-      <div className="max-w-6xl mx-auto">
+    <section id="voice-detector" className="border-b border-neutral-800 px-6 py-16">
+      <div className="mx-auto max-w-4xl">
+        <h2 className="mb-2 font-mono text-sm uppercase tracking-widest text-neutral-400">
+          AI voice fraud detector
+        </h2>
+        <p className="mb-8 max-w-xl text-sm text-neutral-500">
+          Upload an audio clip and Gemini listens to it directly — tone, pacing, and
+          content — no manual transcription needed. You can also paste a transcript
+          instead, or alongside it for extra context.
+        </p>
 
-        {/* Heading */}
-        <h1 className="text-6xl font-bold mb-12">
-          AI Voice Fraud{" "}
-          <span className="text-cyan-400">Detector</span>
-        </h1>
+        <label className="mb-2 block font-mono text-xs uppercase tracking-widest text-neutral-500">
+          Audio file (recommended)
+        </label>
+        <input
+          type="file"
+          accept="audio/*"
+          onChange={handleFileChange}
+          className="mb-2 block w-full text-sm text-neutral-400 file:mr-4 file:rounded-md file:border file:border-neutral-700 file:bg-neutral-900 file:px-3 file:py-1.5 file:text-xs file:text-neutral-300 file:transition hover:file:bg-neutral-800"
+        />
+        {file && (
+          <p className="mb-4 font-mono text-xs text-emerald-400">
+            attached: {file.name} ({(file.size / (1024 * 1024)).toFixed(2)}MB) — will be analyzed directly
+          </p>
+        )}
+        {fileError && (
+          <p className="mb-4 font-mono text-xs text-rose-400">{fileError}</p>
+        )}
 
-        {/* Upload Section */}
-        <div className="mb-10">
-          <label className="text-cyan-400 text-2xl font-semibold block mb-4">
-            Upload Suspicious Audio File
-          </label>
-
-          <input
-            type="file"
-            accept=".mp3,.wav,.m4a"
-            className="block w-full text-xl bg-black border border-cyan-900 rounded-2xl p-4"
-          />
-        </div>
-
-        {/* Transcript Input */}
         <textarea
           value={transcript}
           onChange={(e) => setTranscript(e.target.value)}
-          placeholder="Paste suspicious voice call transcript here..."
-          className="w-full h-[260px] bg-black border border-cyan-900 rounded-3xl p-10 text-3xl outline-none resize-none"
+          placeholder="Optional: paste a transcript for extra context, or use this instead of an audio file..."
+          rows={5}
+          className="mt-2 w-full resize-none rounded-md border border-neutral-800 bg-neutral-950 p-4 text-sm text-neutral-200 placeholder:text-neutral-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
         />
 
-        {/* Analyze Button */}
-        <button
-          onClick={analyzeVoice}
-          disabled={loading}
-          className="mt-10 px-16 py-6 rounded-2xl bg-cyan-400 text-black text-3xl font-bold shadow-[0_0_40px_rgba(34,211,238,0.7)] hover:scale-105 transition"
-        >
-          {loading ? "Analyzing..." : "Analyze Voice"}
-        </button>
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            onClick={analyzeVoice}
+            disabled={loading || (!file && !transcript.trim())}
+            className="rounded-md border border-cyan-500/40 bg-cyan-500/5 px-5 py-2.5 text-sm font-medium text-cyan-400 transition hover:bg-cyan-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {loading ? "Analyzing..." : "Analyze voice"}
+          </button>
+          {loading && (
+            <span className="flex items-center gap-2 font-mono text-xs text-neutral-500">
+              <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-neutral-700 border-t-cyan-400" />
+              {file ? "listening to audio" : "running analysis"}
+            </span>
+          )}
+        </div>
 
-        {/* Result */}
         {result && (
-          <>
-            <div className="mt-14 border border-cyan-800 bg-cyan-950/30 rounded-3xl p-10">
-              <h2 className="text-5xl font-bold text-cyan-400 mb-8">
-                AI Analysis Result
-              </h2>
+          <div className="mt-8 border-t border-neutral-800 pt-6">
+            <h3 className="mb-3 font-mono text-xs uppercase tracking-widest text-neutral-400">
+              Result
+            </h3>
+            <pre className="whitespace-pre-wrap rounded-md border border-neutral-800 bg-neutral-950 p-4 text-sm leading-relaxed text-neutral-300">
+              {result}
+            </pre>
 
-              <pre className="whitespace-pre-wrap text-2xl leading-loose">
-                {result}
-              </pre>
-            </div>
-
-            {/* Threat Meter */}
-            <div className="mt-12">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-4xl">
-                  Threat Probability
-                </h3>
-
-                <span className="text-red-400 text-4xl font-bold">
+            <div className="mt-6">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="text-neutral-400">Threat probability</span>
+                <span className="font-mono font-bold text-cyan-400">
                   {riskScore}%
                 </span>
               </div>
-
-              <div className="w-full h-8 bg-gray-800 rounded-full overflow-hidden">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-800">
                 <div
-                  className="h-full transition-all duration-700"
-                  style={{
-                    width: `${riskScore}%`,
-                    background:
-                      "linear-gradient(to right, #22d3ee, #facc15, #ef4444)",
-                  }}
+                  className="h-full rounded-full bg-cyan-400 transition-all duration-500"
+                  style={{ width: `${riskScore}%` }}
                 />
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </section>

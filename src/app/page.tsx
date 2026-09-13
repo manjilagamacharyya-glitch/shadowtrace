@@ -1,26 +1,21 @@
-import Particles from "@/components/Particles";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import Features from "@/components/Features";
 import Scanner from "@/components/Scanner";
-import UrlScanner from "@/components/UrlScanner";
+import EmailScanner from "@/components/EmailScanner";
 import VoiceScanner from "@/components/VoiceScanner";
-import DeepfakeScanner from "@/components/DeepfakeScanner";
 import Dashboard from "@/components/Dashboard";
 import Footer from "@/components/Footer";
 
-
 export default function Home() {
   return (
-    <main className="bg-black text-white">
-      <Particles />
+    <main className="bg-[#0a0a0b] text-neutral-300">
       <Navbar />
       <Hero />
       <Features />
       <Scanner />
-      <UrlScanner />
+      <EmailScanner />
       <VoiceScanner />
-      <DeepfakeScanner />
       <Dashboard />
       <Footer />
     </main>

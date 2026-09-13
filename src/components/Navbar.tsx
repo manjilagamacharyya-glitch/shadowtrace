@@ -1,53 +1,43 @@
 "use client";
 
-import { motion } from "framer-motion";
-
 export default function Navbar() {
   return (
-    <motion.nav
-      initial={{ y: -80, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.8 }}
-      className="fixed top-0 left-0 w-full z-50 px-6 py-4"
-    >
-      <div className="max-w-7xl mx-auto flex items-center justify-between
-      backdrop-blur-xl bg-white/5 border border-white/10
-      rounded-2xl px-6 py-4 shadow-[0_0_30px_rgba(59,130,246,0.15)]">
-
-        {/* Logo */}
+    <header className="sticky top-0 z-50 border-b border-neutral-800/80 bg-[#0a0a0b]/80 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_15px_#22d3ee]" />
-          <h1 className="text-2xl font-bold tracking-tight text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md border border-cyan-500/30 bg-cyan-500/10 font-mono text-sm font-bold text-cyan-400">
+            ST
+          </div>
+          <span className="text-base font-semibold tracking-tight text-neutral-100">
             ShadowTrace
-          </h1>
+          </span>
+          <span className="rounded border border-neutral-800 px-2 py-0.5 font-mono text-[11px] text-neutral-500">
+            beta
+          </span>
         </div>
 
-        {/* Nav Links */}
-        <div className="hidden md:flex items-center gap-8 text-sm text-gray-300">
-          <a href="#features" className="hover:text-cyan-400 transition">
-            Features
-          </a>
-
-          <a href="#scanner" className="hover:text-cyan-400 transition">
-            Threat Scanner
-          </a>
-
-          <a href="#url-detector" className="hover:text-cyan-400 transition">
-            URL Detector
-          </a>
-
-          <a href="#home" className="hover:text-cyan-400 transition">
+        <nav className="hidden items-center gap-7 font-mono text-xs uppercase tracking-widest text-neutral-400 md:flex">
+          <a href="#home" className="transition hover:text-cyan-400">
             Home
           </a>
-        </div>
+          <a href="#features" className="transition hover:text-cyan-400">
+            Features
+          </a>
+          <a href="#scanner" className="transition hover:text-cyan-400">
+            Threat Scanner
+          </a>
+          <a href="#email-detector" className="transition hover:text-cyan-400">
+            Email Detector
+          </a>
+        </nav>
 
-        {/* CTA Button */}
-        <button className="bg-cyan-400/10 border border-cyan-400/30
-        hover:bg-cyan-400/20 transition px-5 py-2 rounded-xl
-        text-cyan-300 text-sm shadow-[0_0_20px_rgba(34,211,238,0.2)]">
-          Analyze Threat
-        </button>
+        <a
+          href="#scanner"
+          className="rounded-md border border-cyan-500/40 bg-cyan-500/5 px-4 py-2 font-mono text-xs text-cyan-400 transition hover:bg-cyan-500/15"
+        >
+          Analyze
+        </a>
       </div>
-    </motion.nav>
+    </header>
   );
 }

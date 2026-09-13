@@ -1,6 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { parseRiskScore } from "@/lib/parseRiskScore";
+
+function severity(score: number) {
+  if (score >= 70) return { label: "critical", color: "text-rose-400 border-rose-500/40" };
+  if (score >= 40) return { label: "moderate", color: "text-amber-400 border-amber-500/40" };
+  return { label: "low", color: "text-emerald-400 border-emerald-500/40" };
+}
 
 export default function Scanner() {
   const [input, setInput] = useState("");
@@ -37,23 +44,9 @@ export default function Scanner() {
 
       setResult(data.result);
 
-      // Extract Risk Score
-      const scoreMatch = data.result.match(
-        /Risk Score:\s*(\d+)/i
-      );
-
-      let extractedScore = scoreMatch
-        ? parseInt(scoreMatch[1])
-        : 0;
-
-      // Convert 10-point scale to percentage if needed
-      if (extractedScore <= 10) {
-        extractedScore = extractedScore * 10;
-      }
-
+      const extractedScore = parseRiskScore(data.result);
       setThreatScore(extractedScore);
 
-      // Save scan history
       setHistory((prev) => [
         {
           text: input,
@@ -64,143 +57,112 @@ export default function Scanner() {
       ]);
     } catch (error) {
       console.error(error);
-
-      setResult(
-        "AI analysis failed: could not reach the server. Check your connection and try again."
-      );
+      setResult("Analysis failed. Try again in a moment.");
       setThreatScore(0);
     } finally {
       setLoading(false);
     }
   };
 
+  const current = severity(threatScore);
+
   return (
-    <section
-      id="scanner"
-      className="w-full min-h-screen bg-black text-white px-6 py-24"
-    >
-      <div className="max-w-6xl mx-auto">
-        {/* Heading */}
-        <div className="text-center mb-16">
-          <h1 className="text-6xl md:text-7xl font-bold mb-6">
-            Live Threat{" "}
-            <span className="text-cyan-400">Scanner</span>
-          </h1>
+    <section id="scanner" className="border-b border-neutral-800 px-6 py-16">
+      <div className="mx-auto max-w-4xl">
+        <h2 className="mb-2 font-mono text-sm uppercase tracking-widest text-neutral-400">
+          Threat scanner
+        </h2>
+        <p className="mb-8 max-w-xl text-sm text-neutral-500">
+          Paste a suspicious message, DM, or text and get a risk score with a
+          breakdown of what triggered it.
+        </p>
 
-          <p className="text-gray-400 text-xl max-w-3xl mx-auto">
-            ShadowTrace analyzes suspicious messages,
-            emotional manipulation, phishing attempts,
-            and scam probability in real time.
-          </p>
-        </div>
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Paste a suspicious message here..."
+          rows={6}
+          className="w-full resize-none rounded-md border border-neutral-800 bg-neutral-950 p-4 text-sm text-neutral-200 placeholder:text-neutral-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
+        />
 
-        {/* Scanner Box */}
-        <div className="bg-[#050505] border border-cyan-500/10 rounded-[40px] p-10 shadow-[0_0_60px_rgba(0,255,255,0.08)]">
-          {/* Textarea */}
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Paste suspicious message here..."
-            className="w-full h-[250px] bg-black border border-white/10 rounded-3xl p-8 text-3xl text-white outline-none resize-none"
-          />
-
-          {/* Button + inline loading state */}
-          <div className="mt-10 flex items-center gap-6">
-            <button
-              onClick={analyzeThreat}
-              disabled={loading || !input.trim()}
-              className="px-14 py-6 bg-cyan-400 text-black font-bold text-3xl rounded-3xl shadow-[0_0_40px_rgba(0,255,255,0.5)] hover:scale-105 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
-            >
-              {loading ? "Analyzing..." : "Analyze Threat"}
-            </button>
-
-            {loading && (
-              <span className="flex items-center gap-3 text-cyan-400 text-xl">
-                <span className="h-6 w-6 animate-spin rounded-full border-4 border-cyan-400/20 border-t-cyan-400" />
-                Running AI analysis
-              </span>
-            )}
-          </div>
-
-          {/* Result */}
-          {result && (
-            <div className="mt-14 bg-cyan-500/10 border border-cyan-400/30 rounded-3xl p-10">
-              <h2 className="text-5xl font-bold text-cyan-400 mb-8">
-                AI Analysis Result
-              </h2>
-
-              <pre className="whitespace-pre-wrap text-2xl leading-loose text-white">
-                {result}
-              </pre>
-            </div>
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            onClick={analyzeThreat}
+            disabled={loading || !input.trim()}
+            className="rounded-md border border-cyan-500/40 bg-cyan-500/5 px-5 py-2.5 text-sm font-medium text-cyan-400 transition hover:bg-cyan-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {loading ? "Analyzing..." : "Analyze"}
+          </button>
+          {loading && (
+            <span className="flex items-center gap-2 font-mono text-xs text-neutral-500">
+              <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-neutral-700 border-t-cyan-400" />
+              running analysis
+            </span>
           )}
-
-          {/* Threat Meter */}
-          <div className="mt-14">
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="text-3xl">
-                Threat Probability
-              </h3>
-
-              <span className="text-red-400 text-3xl font-bold">
-                {threatScore}%
-              </span>
-            </div>
-
-            <div className="w-full h-7 bg-white/10 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-cyan-400 via-yellow-400 to-red-500 transition-all duration-700"
-                style={{
-                  width: `${threatScore}%`,
-                }}
-              />
-            </div>
-          </div>
-
-          {/* History */}
-          <div className="mt-20">
-            <h2 className="text-6xl font-bold text-cyan-400 mb-10">
-              Threat History
-            </h2>
-
-            <div className="space-y-8">
-              {history.map((item, index) => (
-                <div
-                  key={index}
-                  className="bg-white/5 border border-white/10 rounded-3xl p-8"
-                >
-                  <div className="flex justify-between items-center mb-5">
-                    <span className="px-5 py-2 rounded-full bg-cyan-400/20 text-cyan-300 text-xl font-semibold">
-                      {item.score >= 70
-                        ? "Critical Threat"
-                        : item.score >= 40
-                        ? "Moderate Threat"
-                        : "Low Threat"}
-                    </span>
-
-                    <span className="text-gray-500 text-xl">
-                      {item.time}
-                    </span>
-                  </div>
-
-                  <p className="text-2xl text-white mb-6">
-                    {item.text}
-                  </p>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400 text-xl">
-                      Threat Probability
-                    </span>
-
-                    <span className="text-cyan-400 text-3xl font-bold">
-                      {item.score}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
+
+        {result && (
+          <div className="mt-8 border-t border-neutral-800 pt-6">
+            <h3 className="mb-3 font-mono text-xs uppercase tracking-widest text-neutral-400">
+              Result
+            </h3>
+            <pre className="whitespace-pre-wrap rounded-md border border-neutral-800 bg-neutral-950 p-4 text-sm leading-relaxed text-neutral-300">
+              {result}
+            </pre>
+
+            <div className="mt-6">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="text-neutral-400">Threat probability</span>
+                <span className={`font-mono font-bold ${current.color.split(" ")[0]}`}>
+                  {threatScore}%
+                </span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-800">
+                <div
+                  className="h-full rounded-full bg-cyan-400 transition-all duration-500"
+                  style={{ width: `${threatScore}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {history.length > 0 && (
+          <div className="mt-10">
+            <h3 className="mb-4 border-b border-neutral-800 pb-3 font-mono text-sm uppercase tracking-widest text-neutral-400">
+              Scan history
+            </h3>
+
+            <div className="space-y-3">
+              {history.map((item, index) => {
+                const s = severity(item.score);
+                return (
+                  <div
+                    key={index}
+                    className="border border-neutral-800/80 bg-neutral-950/60 p-4"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span
+                        className={`border px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wide ${s.color}`}
+                      >
+                        {s.label}
+                      </span>
+                      <span className="font-mono text-xs text-neutral-500">
+                        {item.time}
+                      </span>
+                    </div>
+                    <p className="line-clamp-2 text-sm text-neutral-400">
+                      {item.text}
+                    </p>
+                    <p className="mt-2 font-mono text-xs text-neutral-500">
+                      score: <span className="text-neutral-300">{item.score}%</span>
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
