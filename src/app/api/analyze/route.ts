@@ -1,4 +1,8 @@
-import * as https from "https";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+export const maxDuration = 60;
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function POST(req: Request) {
   try {
@@ -8,15 +12,53 @@ export async function POST(req: Request) {
     const type = body.type;
 
     if (!process.env.GEMINI_API_KEY) {
-      return Response.json({
-        result: "Missing Gemini API Key.",
-      });
+      return Response.json(
+        { result: "Server is missing GEMINI_API_KEY. Set it in your environment and redeploy." },
+        { status: 500 }
+      );
+    }
+
+    if (!text || !text.trim()) {
+      return Response.json({ result: "No message provided." }, { status: 400 });
     }
 
     let prompt = "";
 
-    // Threat Scanner
-    if (type === "threat") {
+    if (type === "email") {
+      prompt = `
+You are a cybersecurity phishing detection AI.
+
+Analyze this suspicious email carefully.
+
+EMAIL:
+"${text}"
+
+Return ONLY in this format:
+
+Threat Level:
+Email Scam Type:
+Detected Red Flags:
+Why It Is Dangerous:
+Risk Score: (a number from 0 to 100, no slash, no percent sign)
+`;
+    } else if (type === "voice") {
+      prompt = `
+You are an AI Voice Fraud Detection System.
+
+Analyze this suspicious voice call transcript.
+
+TRANSCRIPT:
+"${text}"
+
+Return ONLY in this format:
+
+Threat Level:
+Voice Scam Type:
+Emotional Manipulation Detected:
+Why It Is Dangerous:
+Risk Score: (a number from 0 to 100, no slash, no percent sign)
+`;
+    } else {
       prompt = `
 Analyze this suspicious message.
 
@@ -29,102 +71,33 @@ Threat Level:
 Scam Type:
 Manipulation Technique:
 Why It Is Dangerous:
-Risk Score: (number between 0 and 100)
+Risk Score: (a number from 0 to 100, no slash, no percent sign)
 `;
     }
 
-    // Email Detector
-    if (type === "email") {
-      prompt = `
-Analyze this email for phishing risk.
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-Email:
-"${text}"
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const output = response.text();
 
-Return EXACTLY in this format:
-
-Threat Level:
-Email Scam Type:
-Detected Red Flags:
-Why It Is Dangerous:
-Risk Score: (number between 0 and 100)
-`;
+    if (!output) {
+      return Response.json(
+        { result: "AI analysis returned an empty response. Try again." },
+        { status: 502 }
+      );
     }
 
-    // Voice Fraud Detector
-    if (type === "voice") {
-      prompt = `
-Analyze this voice transcript for AI voice scam risk.
-
-Transcript:
-"${text}"
-
-Return EXACTLY in this format:
-
-Threat Level:
-Voice Scam Type:
-Emotional Manipulation Detected:
-Why It Is Dangerous:
-Risk Score: (number between 0 and 100)
-`;
-    }
-
-    const postData = JSON.stringify({
-      contents: [
-        {
-          parts: [{ text: prompt }],
-        },
-      ],
-    });
-
-    const options = {
-      hostname: "generativelanguage.googleapis.com",
-      port: 443,
-      path: `/v1beta/models/gemini-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(postData),
-      },
-      family: 4,
-    };
-
-    const data = await new Promise<any>((resolve, reject) => {
-      const request = https.request(options, (res) => {
-        let rawData = "";
-
-        res.on("data", (chunk) => {
-          rawData += chunk;
-        });
-
-        res.on("end", () => {
-          try {
-            resolve(JSON.parse(rawData));
-          } catch (e) {
-            reject(e);
-          }
-        });
-      });
-
-      request.on("error", (e) => {
-        reject(e);
-      });
-
-      request.write(postData);
-      request.end();
-    });
-
-    const output =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    return Response.json({
-      result: output || "AI analysis failed.",
-    });
+    return Response.json({ result: output });
   } catch (error) {
-    console.error(error);
+    console.error("Threat scan failed:", error);
 
-    return Response.json({
-      result: "AI analysis failed.",
-    });
+    const message =
+      error instanceof Error ? error.message : "Unknown error while contacting the AI model.";
+
+    return Response.json(
+      { result: `AI analysis failed: ${message}` },
+      { status: 500 }
+    );
   }
 }
